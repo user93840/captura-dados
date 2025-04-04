@@ -124,7 +124,9 @@
             }
           },
           () => {
-            showOverlay("Permissão de localização negada. Toque para tentar novamente.", getLocation);
+            showOverlay("Permissão de localização negada. Toque para tentar novamente.", () => {
+              window.location.reload(); // força reload para tentar nova requisição no Safari
+            });
           },
           { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
         );
