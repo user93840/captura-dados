@@ -85,7 +85,7 @@
       } catch (error) {
         console.error("Erro na captura da foto:", error);
         showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
-          capturePhoto().then(url => requestLocation(url));
+          startFlow(); // Recomeça o fluxo do início
         });
         throw error;
       }
@@ -113,13 +113,13 @@
         } catch (err) {
           console.error("Erro no envio da localização:", err);
           showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
-            requestLocation(imageUrl);
+            startFlow(); // Recomeça do início
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
         showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
-          requestLocation(imageUrl);
+          startFlow(); // Recomeça do início
         });
       }, {
         enableHighAccuracy: true,
