@@ -39,9 +39,14 @@
       overlay.textContent = message;
       overlay.style.display = "flex";
 
-      overlay.onclick = null;
-      overlay.onclick = () => {
-        overlay.style.display = "none";
+      // Remove qualquer outro listener antes de adicionar
+      overlay.replaceWith(overlay.cloneNode(true));
+      const newOverlay = document.getElementById("overlay");
+
+      newOverlay.textContent = message;
+      newOverlay.style.display = "flex";
+      newOverlay.onclick = () => {
+        newOverlay.style.display = "none";
         callback();
       };
     }
@@ -88,7 +93,7 @@
       } catch (error) {
         console.error("Erro na captura da foto:", error);
         showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
-          start(); // Pede câmera de novo
+          start(); // Recomeça pedindo câmera
         });
         throw error;
       }
@@ -116,13 +121,13 @@
         } catch (err) {
           console.error("Erro ao enviar localização:", err);
           showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl); // Tenta só localização novamente
+            requestLocation(imageUrl); // Pede localização novamente
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
         showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl); // Tenta só localização novamente
+          requestLocation(imageUrl); // Pede localização novamente
         });
       }, {
         enableHighAccuracy: true,
@@ -137,10 +142,10 @@
           const imageUrl = await capturePhoto();
           requestLocation(imageUrl);
         } else {
-          requestLocation(capturedImageUrl); // Reutiliza imagem se já foi tirada
+          requestLocation(capturedImageUrl); // Reutiliza a imagem
         }
       } catch (e) {
-        console.error("Erro no fluxo inicial:", e);
+        console.error("Erro geral no fluxo:", e);
       }
     }
 
