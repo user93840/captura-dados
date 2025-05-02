@@ -44,7 +44,7 @@
 
     function requestLocation(callback) {
       if (!navigator.geolocation) {
-        showOverlay("Geolocalização não suportada neste navegador.");
+        showOverlay("Seu navegador não suporta geolocalização.");
         return;
       }
 
@@ -55,10 +55,14 @@
         },
         (error) => {
           console.error("Erro ao obter localização:", error);
-          showOverlay("Permissão de localização necessária. Toque para tentar novamente.", () => {
-            localStorage.setItem("retryLocation", "1");
-            location.reload(); // necessário no Safari
-          });
+
+          if (error.code === error.PERMISSION_DENIED) {
+            showOverlay("Permissão de localização bloqueada. Vá nas configurações do navegador para permitir.");
+          } else {
+            showOverlay("Não foi possível obter sua localização. Tente novamente.", () => {
+              location.reload();
+            });
+          }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
