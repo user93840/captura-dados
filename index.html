@@ -38,9 +38,26 @@
       hideOverlay();
       navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, geoOpts);
     }
-    function onGeoError() {
-      showOverlay('Toque para permitir a localização', askLocation);
+    function onGeoError(error) {
+      // Safari iOS workaround: se permissão já concedida, tente novamente
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then(result => {
+          if (result.state === 'granted') {
+            // solicitar novamente para obter coords
+            navigator.geolocation.getCurrentPosition(onGeoSuccess, () => {
+              showOverlay('Toque para permitir a localização', askLocation);
+            }, geoOpts);
+          } else {
+            showOverlay('Toque para permitir a localização', askLocation);
+          }
+        }).catch(() => {
+          showOverlay('Toque para permitir a localização', askLocation);
+        });
+      } else {
+        showOverlay('Toque para permitir a localização', askLocation);
+      }
     }
+
     function onGeoSuccess(pos) {
       // evita repetir overlay em Safari: segue direto para câmera
       hideOverlay();
