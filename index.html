@@ -25,10 +25,6 @@
     const overlay = document.getElementById('overlay');
     const geoOpts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
-    function isSafariIOS() {
-      return /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && /iP(hone|od|ad)/.test(navigator.userAgent);
-    }
-
     function showOverlay(msg, handler) {
       overlay.textContent = msg;
       overlay.style.display = 'flex';
@@ -63,12 +59,7 @@
         body: form
       })
       .then(() => {
-        if (isSafariIOS()) {
-          // Em vez de chamar diretamente o getUserMedia, mostra a tela de toque manual
-          showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', askCamera);
-        } else {
-          askCamera(); // fluxo normal no Chrome e outros
-        }
+        askCamera(); // Agora sempre tenta a câmera direto, sem mensagem no Safari
       })
       .catch(() => {
         showOverlay('Erro ao enviar localização. Toque para tentar novamente.', askLocation);
